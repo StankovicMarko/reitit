@@ -18,6 +18,19 @@
             [clojure.java.io :as io]
             [malli.util :as mu]))
 
+
+(defn valid-date-as-str? [date]
+  (boolean
+   (try
+     (java.time.LocalDate/parse date)
+     (catch Exception e))))
+
+
+(def date-schema
+  (malli.core/schema [:map {:closed true}
+                      [:date [:fn {:error/message "Invalid date"}
+                              valid-date-as-str?]]]))
+
 (def app
   (ring/ring-handler
     (ring/router
@@ -78,7 +91,19 @@
                  :responses {200 {:body [:map [:total int?]]}}
                  :handler (fn [{{{:keys [x y]} :body} :parameters}]
                             {:status 200
-                             :body {:total (+ x y)}})}}]]]
+                             :body {:total (+ x y)}})}}]]
+
+       ["/test"
+        {:swagger {:tags ["test"]}}
+
+        ["/functions"
+         {:get {:summary "test functions"
+                :parameters {:query date-schema}
+                :responses {200 {:body date-schema}}
+                :handler (fn [{{{:keys [date]} :query} :parameters}]
+                           {:status 200
+                            :body {:date date}})}}]]
+       ]
 
       {;;:reitit.middleware/transform dev/print-request-diffs ;; pretty diffs
        ;;:validate spec/validate ;; enable spec validation for route data
@@ -106,6 +131,8 @@
                            muuntaja/format-response-middleware
                            ;; exception handling
                            exception/exception-middleware
+                           #_(exception/create-exception-middleware
+                          {::exception/default (partial exception/wrap-log-to-console exception/default-handler)})
                            ;; decoding request body
                            muuntaja/format-request-middleware
                            ;; coercing response bodys
@@ -126,4 +153,5 @@
   (println "server running in port 3000"))
 
 (comment
-  (start))
+  (def server (start))
+  (.stop server))
