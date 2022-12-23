@@ -16,7 +16,8 @@
             [ring.adapter.jetty :as jetty]
             [muuntaja.core :as m]
             [clojure.java.io :as io]
-            [malli.util :as mu]))
+            [malli.util :as mu]
+            [ring.middleware.cors :refer [wrap-cors]]))
 
 
 (defn valid-date-as-str? [date]
@@ -103,6 +104,18 @@
                 :handler (fn [{{{:keys [date]} :query} :parameters}]
                            {:status 200
                             :body {:date date}})}}]]
+       ["/match"
+        {:swagger {:tags ["test"]}}
+
+        ["/snippet"
+         {:get {:summary "snippet"
+                :parameters {:query any?}
+                :responses {200 {:body any?}}
+                :handler (fn [req]
+                           (prn "Q" req)
+                           {:status 200
+                            :body {:q (get-in req [:parameters :query])}})}}]]
+
        ]
 
       {;;:reitit.middleware/transform dev/print-request-diffs ;; pretty diffs
@@ -140,7 +153,13 @@
                            ;; coercing request parameters
                            coercion/coerce-request-middleware
                            ;; multipart
-                           multipart/multipart-middleware]}})
+                           multipart/multipart-middleware
+
+                           [wrap-cors
+                            :access-control-allow-origin [#".*"]
+                            :access-control-allow-methods [:get :put :post :delete]]
+
+                           ]}})
     (ring/routes
       (swagger-ui/create-swagger-ui-handler
         {:path "/"
@@ -154,4 +173,5 @@
 
 (comment
   (def server (start))
-  (.stop server))
+  (.stop server)
+  )
